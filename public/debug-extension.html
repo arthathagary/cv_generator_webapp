@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Extension Debug Console</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .debug-info {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            font-family: monospace;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Extension Debug Helper</h1>
+    
+    <div class="step">
+        <h3>Step 1: Check Extension Background Script</h3>
+        <p>1. Go to <strong>chrome://extensions/</strong></p>
+        <p>2. Make sure "Developer mode" is ON</p>
+        <p>3. Find your "Resume AI" extension</p>
+        <p>4. Click "service worker" (or "background page") link</p>
+        <p>5. This opens the background script console</p>
+        <p>6. Look for any error messages in red</p>
+        <p>7. Try the connection test while watching this console</p>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Check Extension Storage</h3>
+        <p>In the background script console, paste this command:</p>
+        <div class="debug-info">chrome.storage.sync.get(['webAppConnected', 'accessToken', 'userProfile']).then(console.log)</div>
+        <p>This will show you what's actually stored in the extension.</p>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Test Background Script Connection</h3>
+        <p>In the background script console, paste this to test if it can receive connections:</p>
+        <div class="debug-info">console.log('Background script is running');
+chrome.runtime.onConnect.addListener((port) => {
+    console.log('TEST: Port connected:', port.name, 'from:', port.sender);
+    port.onMessage.addListener((msg) => {
+        console.log('TEST: Message received:', msg);
+    });
+});</div>
+    </div>
+
+    <div class="step">
+        <h3>Step 4: Check Extension Manifest</h3>
+        <p>Make sure your extension has these permissions in manifest.json:</p>
+        <div class="debug-info">"externally_connectable": {
+    "matches": [
+        "http://localhost:*/*",
+        "https://localhost:*/*"
+    ]
+}</div>
+    </div>
+
+    <div class="step">
+        <h3>Step 5: Manual Connection Test</h3>
+        <p>Enter your extension ID and test manually:</p>
+        <input type="text" id="extensionId" placeholder="Extension ID" style="width: 100%; padding: 5px; margin: 10px 0;">
+        <button onclick="manualTest()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px;">Test Connection</button>
+        <div id="manualLog" class="debug-info" style="margin-top: 10px; height: 200px; overflow-y: auto;">Ready for test...</div>
+    </div>
+
+    <script>
+        function manualTest() {
+            const extensionId = document.getElementById('extensionId').value.trim();
+            const logDiv = document.getElementById('manualLog');
+            
+            function log(msg) {
+                const timestamp = new Date().toLocaleTimeString();
+                logDiv.textContent += `[${timestamp}] ${msg}\n`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+                console.log(msg);
+            }
+            
+            if (!extensionId) {
+                log('❌ Please enter extension ID');
+                return;
+            }
+            
+            log('🔧 Testing connection to: ' + extensionId);
+            
+            if (!window.chrome || !window.chrome.runtime) {
+                log('❌ Chrome runtime not available');
+                return;
+            }
+            
+            try {
+                log('🔌 Creating connection...');
+                const port = chrome.runtime.connect(extensionId, { name: 'auth' });
+                
+                log('📤 Connection created, sending test message...');
+                
+                const testMessage = {
+                    type: 'EXTENSION_CONNECTED',
+                    accessToken: 'debug-token-' + Date.now(),
+                    userId: 'debug-user',
+                    profile: {
+                        name: 'Debug Test User',
+                        email: 'debug@test.com'
+                    },
+                    timestamp: Date.now()
+                };
+                
+                port.onMessage.addListener((response) => {
+                    log('✅ Response received: ' + JSON.stringify(response));
+                });
+                
+                port.onDisconnect.addListener(() => {
+                    if (chrome.runtime.lastError) {
+                        log('❌ Disconnected with error: ' + chrome.runtime.lastError.message);
+                    } else {
+                        log('✅ Disconnected normally - connection likely successful!');
+                    }
+                });
+                
+                port.postMessage(testMessage);
+                log('📤 Message sent: ' + JSON.stringify(testMessage, null, 2));
+                
+            } catch (error) {
+                log('❌ Connection error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

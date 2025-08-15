@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get Extension ID</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 5px;
+        }
+        .extension-id {
+            background: #e9ecef;
+            padding: 10px;
+            font-family: monospace;
+            border-radius: 5px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Chrome Extension Setup Helper</h1>
+        
+        <div class="step">
+            <h3>Step 1: Get Your Extension ID</h3>
+            <p>1. Open a new tab and go to: <strong>chrome://extensions/</strong></p>
+            <p>2. Make sure "Developer mode" is ON (toggle in top right)</p>
+            <p>3. Find your resume extension in the list</p>
+            <p>4. Copy the "ID" field (long string like: abcdefghijklmnopqrstuvwxyz123456)</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Test Connection with Your Extension ID</h3>
+            <p>Enter your extension ID here:</p>
+            <input type="text" id="extensionIdInput" placeholder="Paste your extension ID here" style="width: 100%; padding: 10px; margin: 10px 0;">
+            <br>
+            <button onclick="testWithExtensionId()" class="button">Test Connection</button>
+            <button onclick="openAuthPage()" class="button">Open Auth Page</button>
+            <button onclick="openExtensionPopup()" class="button">Open Extension Popup</button>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Quick Links (Replace YOUR_EXTENSION_ID)</h3>
+            <div id="quickLinks">
+                <p><em>Enter your extension ID above to generate working links</em></p>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>Connection Test Log</h3>
+            <div id="testLog" style="background: #000; color: #00ff00; padding: 15px; font-family: monospace; height: 200px; overflow-y: auto; border-radius: 5px;">
+                Waiting for test...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                'info': '#00ff00',
+                'error': '#ff0000',
+                'success': '#00ffff'
+            };
+            logDiv.innerHTML += `<div style="color: ${colors[type] || '#00ff00'}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function testWithExtensionId() {
+            const extensionId = document.getElementById('extensionIdInput').value.trim();
+            
+            if (!extensionId) {
+                log('❌ Please enter your extension ID first', 'error');
+                return;
+            }
+
+            if (extensionId === 'YOUR_EXTENSION_ID') {
+                log('❌ Please replace YOUR_EXTENSION_ID with your actual extension ID', 'error');
+                return;
+            }
+
+            log('🔧 Starting connection test with ID: ' + extensionId);
+            
+            // Check if Chrome APIs are available
+            if (!window.chrome || !window.chrome.runtime) {
+                log('❌ Chrome extension APIs not available. Make sure you\'re using Chrome.', 'error');
+                return;
+            }
+
+            log('✅ Chrome APIs available');
+
+            // Test connection
+            const testData = {
+                type: 'EXTENSION_CONNECTED',
+                accessToken: 'test-token-123',
+                userId: 'test-user-456',
+                profile: {
+                    name: 'Sarah Johnson',
+                    email: 'sarah.johnson@test.com',
+                    hasProfile: true
+                },
+                apiUrl: window.location.origin,
+                timestamp: Date.now()
+            };
+
+            try {
+                log('🔌 Attempting to connect to extension...');
+                const port = chrome.runtime.connect(extensionId, { name: 'auth' });
+                
+                port.onMessage.addListener((response) => {
+                    log('✅ Received response: ' + JSON.stringify(response), 'success');
+                });
+                
+                port.onDisconnect.addListener(() => {
+                    if (chrome.runtime.lastError) {
+                        log('❌ Connection failed: ' + chrome.runtime.lastError.message, 'error');
+                        log('💡 This is normal if the extension popup is closed - the connection should still work!', 'info');
+                        log('💡 Open the extension popup to see if the profile is connected', 'info');
+                    } else {
+                        log('✅ Connection successful! Background script received the data.', 'success');
+                        log('🎉 Profile should now be connected in the extension!', 'success');
+                        log('💡 Open your extension popup to verify the connection', 'info');
+                    }
+                });
+                
+                port.postMessage(testData);
+                log('📤 Message sent to extension');
+                
+            } catch (error) {
+                log('❌ Connection error: ' + error.message, 'error');
+            }
+        }
+
+        function openAuthPage() {
+            const extensionId = document.getElementById('extensionIdInput').value.trim();
+            if (!extensionId) {
+                alert('Please enter your extension ID first');
+                return;
+            }
+            window.open(`/auth/chrome-extension?extensionId=${extensionId}`, '_blank');
+        }
+
+        // Update quick links when extension ID is entered
+        document.getElementById('extensionIdInput').addEventListener('input', function() {
+            const extensionId = this.value.trim();
+            const quickLinksDiv = document.getElementById('quickLinks');
+            
+            if (extensionId && extensionId !== 'YOUR_EXTENSION_ID') {
+                quickLinksDiv.innerHTML = `
+                    <p><strong>Auth Page:</strong><br>
+                    <code>http://localhost:3000/auth/chrome-extension?extensionId=${extensionId}</code>
+                    <button class="copy-btn" onclick="copyToClipboard('http://localhost:3000/auth/chrome-extension?extensionId=${extensionId}')">Copy</button>
+                    </p>
+                    <p><strong>Test Page:</strong><br>
+                    <code>http://localhost:3000/test-extension-connection.html?extensionId=${extensionId}</code>
+                    <button class="copy-btn" onclick="copyToClipboard('http://localhost:3000/test-extension-connection.html?extensionId=${extensionId}')">Copy</button>
+                    </p>
+                `;
+            } else {
+                quickLinksDiv.innerHTML = '<p><em>Enter your extension ID above to generate working links</em></p>';
+            }
+        });
+
+        function openExtensionPopup() {
+            const extensionId = document.getElementById('extensionIdInput').value.trim();
+            if (!extensionId) {
+                alert('Please enter your extension ID first');
+                return;
+            }
+            
+            log('💡 Click on your extension icon in the Chrome toolbar to see if the profile is connected', 'info');
+            log('💡 Look for "✅ Profile Connected: Sarah Johnson" in the popup', 'success');
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
