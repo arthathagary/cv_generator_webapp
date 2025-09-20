@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dual Method Connection Test</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .results { background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 300px; overflow-y: auto; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Dual Method Connection Test</h1>
+    <p>Extension ID: <code>dimdiagoioeekhdaakleimacmgdlliga</code></p>
+    
+    <div class="test">
+        <h3>Method 1: Port Connection (chrome.runtime.connect)</h3>
+        <button onclick="testPortConnection()">Test Port Connection</button>
+    </div>
+    
+    <div class="test">
+        <h3>Method 2: External Message (chrome.runtime.sendMessage)</h3>
+        <button onclick="testExternalMessage()">Test External Message</button>
+    </div>
+    
+    <div class="test">
+        <h3>Method 3: Direct sendMessage to Extension ID</h3>
+        <button onclick="testDirectMessage()">Test Direct Message</button>
+    </div>
+    
+    <button onclick="clearResults()">Clear Results</button>
+    
+    <div class="results" id="results">Ready for testing...</div>
+
+    <script>
+        const extensionId = 'dimdiagoioeekhdaakleimacmgdlliga';
+        
+        function log(msg) {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            results.innerHTML += `[${timestamp}] ${msg}\n`;
+            results.scrollTop = results.scrollHeight;
+            console.log(msg);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = 'Ready for testing...\n';
+        }
+        
+        function testPortConnection() {
+            log('🔌 Testing Port Connection...');
+            
+            if (!chrome?.runtime) {
+                log('❌ Chrome runtime not available');
+                return;
+            }
+            
+            try {
+                const port = chrome.runtime.connect(extensionId, { name: 'auth' });
+                log('✅ Port created successfully');
+                
+                const testData = {
+                    type: 'EXTENSION_CONNECTED',
+                    accessToken: 'port-test-token',
+                    userId: 'port-test-user',
+                    profile: { name: 'Port Test User', email: 'port@test.com' },
+                    timestamp: Date.now()
+                };
+                
+                port.onMessage.addListener((response) => {
+                    log('📨 Port response: ' + JSON.stringify(response));
+                });
+                
+                port.onDisconnect.addListener(() => {
+                    if (chrome.runtime.lastError) {
+                        log('❌ Port error: ' + chrome.runtime.lastError.message);
+                    } else {
+                        log('✅ Port disconnected normally');
+                    }
+                });
+                
+                port.postMessage(testData);
+                log('📤 Port message sent');
+                
+            } catch (error) {
+                log('❌ Port connection error: ' + error.message);
+            }
+        }
+        
+        function testExternalMessage() {
+            log('📨 Testing External Message...');
+            
+            if (!chrome?.runtime) {
+                log('❌ Chrome runtime not available');
+                return;
+            }
+            
+            const testData = {
+                type: 'EXTENSION_CONNECTED',
+                accessToken: 'external-test-token',
+                userId: 'external-test-user',
+                profile: { name: 'External Test User', email: 'external@test.com' },
+                timestamp: Date.now()
+            };
+            
+            try {
+                chrome.runtime.sendMessage(extensionId, testData, (response) => {
+                    if (chrome.runtime.lastError) {
+                        log('❌ External message error: ' + chrome.runtime.lastError.message);
+                    } else {
+                        log('✅ External message response: ' + JSON.stringify(response));
+                    }
+                });
+                
+                log('📤 External message sent');
+                
+            } catch (error) {
+                log('❌ External message exception: ' + error.message);
+            }
+        }
+        
+        function testDirectMessage() {
+            log('📧 Testing Direct Message...');
+            
+            if (!chrome?.runtime) {
+                log('❌ Chrome runtime not available');
+                return;
+            }
+            
+            const testData = {
+                type: 'EXTENSION_CONNECTED',
+                accessToken: 'direct-test-token',
+                userId: 'direct-test-user',
+                profile: { name: 'Direct Test User', email: 'direct@test.com' },
+                timestamp: Date.now()
+            };
+            
+            try {
+                // This tests the regular message handler (not external)
+                chrome.runtime.sendMessage(testData, (response) => {
+                    if (chrome.runtime.lastError) {
+                        log('❌ Direct message error: ' + chrome.runtime.lastError.message);
+                    } else {
+                        log('✅ Direct message response: ' + JSON.stringify(response));
+                    }
+                });
+                
+                log('📤 Direct message sent');
+                
+            } catch (error) {
+                log('❌ Direct message exception: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

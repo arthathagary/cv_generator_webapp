@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Extension ID Verification</title>
+</head>
+<body>
+    <h1>Extension ID & Connection Verification</h1>
+    <button onclick="testExtensionId()">Test Extension ID</button>
+    <button onclick="testDirectConnection()">Test Direct Connection</button>
+    <div id="results" style="margin-top: 20px; font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px;"></div>
+
+    <script>
+        function log(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            console.log(message);
+        }
+
+        function testExtensionId() {
+            const extensionId = 'dimdiagoioeekhdaakleimacmgdlliga';
+            log('Testing extension ID: ' + extensionId);
+            
+            // Test if we can even reach the extension
+            if (chrome && chrome.runtime) {
+                log('✅ Chrome runtime available');
+                
+                try {
+                    // Try to send a simple message first
+                    chrome.runtime.sendMessage(extensionId, {ping: true}, (response) => {
+                        if (chrome.runtime.lastError) {
+                            log('❌ sendMessage error: ' + chrome.runtime.lastError.message);
+                        } else {
+                            log('✅ sendMessage response: ' + JSON.stringify(response));
+                        }
+                    });
+                } catch (error) {
+                    log('❌ sendMessage exception: ' + error.message);
+                }
+            } else {
+                log('❌ Chrome runtime not available');
+            }
+        }
+
+        function testDirectConnection() {
+            const extensionId = 'dimdiagoioeekhdaakleimacmgdlliga';
+            log('Testing direct connection to: ' + extensionId);
+            
+            if (!chrome || !chrome.runtime) {
+                log('❌ Chrome runtime not available');
+                return;
+            }
+
+            try {
+                log('🔌 Attempting chrome.runtime.connect...');
+                const port = chrome.runtime.connect(extensionId, { name: 'auth' });
+                
+                let connected = false;
+                
+                port.onMessage.addListener((msg) => {
+                    log('📨 Message received: ' + JSON.stringify(msg));
+                    connected = true;
+                });
+                
+                port.onDisconnect.addListener(() => {
+                    if (chrome.runtime.lastError) {
+                        log('❌ Port disconnected with error: ' + chrome.runtime.lastError.message);
+                        
+                        // Check if it's an extension ID issue
+                        if (chrome.runtime.lastError.message.includes('Invalid extension id')) {
+                            log('💡 Extension ID is invalid or extension not found');
+                        } else if (chrome.runtime.lastError.message.includes('Receiving end does not exist')) {
+                            log('💡 Extension exists but not listening for connections');
+                        }
+                    } else {
+                        log('✅ Port disconnected normally');
+                        if (!connected) {
+                            log('⚠️  No messages received before disconnect');
+                        }
+                    }
+                });
+                
+                // Send test message
+                setTimeout(() => {
+                    try {
+                        log('📤 Sending test message...');
+                        port.postMessage({
+                            type: 'EXTENSION_CONNECTED',
+                            accessToken: 'test-token-simple',
+                            userId: 'test-user',
+                            profile: { name: 'Test User' },
+                            timestamp: Date.now()
+                        });
+                    } catch (error) {
+                        log('❌ Error sending message: ' + error.message);
+                    }
+                }, 100);
+                
+            } catch (error) {
+                log('❌ Connection exception: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
